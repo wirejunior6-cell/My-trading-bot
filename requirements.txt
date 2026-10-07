@@ -1,4 +1,4 @@
 pybit
 requests
 pandas
-ccxt
+flask
