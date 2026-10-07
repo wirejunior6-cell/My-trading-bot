@@ -1,0 +1,4 @@
+pybit
+requests
+pandas
+ccxt
