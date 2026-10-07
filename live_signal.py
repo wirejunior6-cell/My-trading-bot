@@ -41,7 +41,7 @@ def calculate_rsi(series, period=14):
     return 100 - (100 / (1 + rs))
 
 def get_market_data():
-    """Fetches kline data and computes SMA, EMA, RSI, MACD, and Volume indicators."""
+    """Fetches kline data and computes EMA 9, EMA 21, EMA 200, RSI, MACD, and Volume indicators."""
     res = session.get_kline(category=CATEGORY, symbol=SYMBOL, interval="15", limit=100)
     if res.get("retCode") != 0:
         print(f"Bybit API Error: {res.get('retMsg')}")
@@ -56,9 +56,9 @@ def get_market_data():
     df = df.iloc[::-1].reset_index(drop=True)
     
     # --- INDICATORS ---
-    # 1. Moving Averages
-    df["SMA_9"] = df["close"].rolling(window=9).mean()
-    df["SMA_21"] = df["close"].rolling(window=21).mean()
+    # 1. Exponential Moving Averages (EMA)
+    df["EMA_9"] = df["close"].ewm(span=9, adjust=False).mean()
+    df["EMA_21"] = df["close"].ewm(span=21, adjust=False).mean()
     df["EMA_200"] = df["close"].ewm(span=200, adjust=False).mean()
 
     # 2. RSI (14)
@@ -77,7 +77,7 @@ def get_market_data():
 
 def run_bot():
     print(f"Starting advanced trading bot for {SYMBOL}...")
-    send_telegram(f"🚀 Multi-Indicator Bot updated on Render for {SYMBOL}!\nIndicators: SMA, EMA200, RSI, MACD, Volume.")
+    send_telegram(f"🚀 Multi-Indicator Bot updated on Render for {SYMBOL}!\nIndicators: EMA 9/21, EMA200, RSI, MACD, Volume.")
     
     while True:
         try:
@@ -87,8 +87,8 @@ def run_bot():
                 prev = df.iloc[-2]
                 
                 close = latest["close"]
-                sma_9 = latest["SMA_9"]
-                sma_21 = latest["SMA_21"]
+                ema_9 = latest["EMA_9"]
+                ema_21 = latest["EMA_21"]
                 ema_200 = latest["EMA_200"]
                 rsi = latest["RSI"]
                 macd = latest["MACD"]
@@ -96,9 +96,9 @@ def run_bot():
                 vol = latest["volume"]
                 vol_ma = latest["VOL_MA20"]
 
-                # Crossover condition
-                bullish_cross = (prev["SMA_9"] <= prev["SMA_21"]) and (sma_9 > sma_21)
-                bearish_cross = (prev["SMA_9"] >= prev["SMA_21"]) and (sma_9 < sma_21)
+                # EMA Crossover condition
+                bullish_cross = (prev["EMA_9"] <= prev["EMA_21"]) and (ema_9 > ema_21)
+                bearish_cross = (prev["EMA_9"] >= prev["EMA_21"]) and (ema_9 < ema_21)
 
                 # Filters
                 above_ema200 = close > ema_200
@@ -114,6 +114,7 @@ def run_bot():
                     msg = (
                         f"🟢 STRONG BULLISH SIGNAL: {SYMBOL}\n"
                         f"Price: {close}\n"
+                        f"Signal: EMA 9 crossed above EMA 21\n"
                         f"RSI: {rsi:.1f} | MACD: Bullish\n"
                         f"Trend: Above EMA200 | Volume: Above Avg"
                     )
@@ -123,6 +124,7 @@ def run_bot():
                     msg = (
                         f"🔴 STRONG BEARISH SIGNAL: {SYMBOL}\n"
                         f"Price: {close}\n"
+                        f"Signal: EMA 9 crossed below EMA 21\n"
                         f"RSI: {rsi:.1f} | MACD: Bearish\n"
                         f"Trend: Below EMA200 | Volume: Above Avg"
                     )
